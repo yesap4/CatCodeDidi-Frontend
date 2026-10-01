@@ -1,11 +1,13 @@
 {
   "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "jsx": "react-jsx",
     "ignoreDeprecations": "6.0",
-    "jsx": "react",
-    "baseUrl": "./",
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src/**/*.js", "src/**/*.jsx"]
 }

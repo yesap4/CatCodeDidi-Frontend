@@ -1,19 +1,45 @@
-import React from "react";
-import { Particles } from "@/Components/ui/particles"
-import Header from "./Components/Header/Header";
-import AI_Wave from "./Components/Interaction Section/AI Wave/AI_Wave";
-import InputBox from "./Components/Interaction Section/InputArea/InputBox";
+import { Route, Routes } from "react-router-dom";
+import DownloadApp from "@/Components/DownloadApp/DownloadApp.jsx";
+import Header from "./Components/Home/Header/Header";
+import ChatArea from "@/Components/ChatArea/ChatArea.jsx";
+import HeroSection from "./Components/Home/HeroSection/HeroSection";
+import AmbientGlow from "./Components/ui/AmbientGlow";
+import Capabilites from "./Components/Home/Capabilites/Capabilites";
+import HowItWorks from "./Components/Home/HowItWorks/HowItWorks";
+import GetStarted from "./Components/Home/GetStarted/GetStarted";
+import Footer from "./Components/Home/Footer/Footer";
+import { ThemeProvider } from "@/Components/ui/theme-provider";
 
 const App = () => {
   return (
-    <div className="relative h-[100dvh] w-full overflow-hidden">
-      <Header />
-      <Particles className="absolute inset-0" />
-      <div className="flex flex-col justify-center items-center ">
-        <AI_Wave />
-        <InputBox />
-      </div>
-    </div>
+    <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <div className="relative flex min-h-screen w-full flex-col">
+              <Header />
+              <main className="pt-20">
+                <div className="flex justify-center items-center">
+                  <AmbientGlow />
+                  <HeroSection />
+                </div>
+                <div className="flex flex-col">
+                  <Capabilites />
+                </div>
+                <div>
+                  <HowItWorks />
+                  <GetStarted />
+                </div>
+              </main>
+              <Footer />
+            </div>
+          }
+        />
+        <Route path="/ChatArea" element={<ChatArea />} />
+        <Route path="/DownloadApp" element={<DownloadApp />} />
+      </Routes>
+    </ThemeProvider>
   );
 };
 
