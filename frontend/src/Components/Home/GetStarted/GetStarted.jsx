@@ -1,4 +1,3 @@
-import React from "react";
 import logo from "../../../assets/Cat_codes_official_logo_zoomed_in_version-removebg-preview.png";
 
 const GetStarted = () => {
