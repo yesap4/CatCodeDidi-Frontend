@@ -1,5 +1,5 @@
 async function SendPrompt(prompt) {
-  const response = await fetch("http://localhost:8000/Prompt", {
+  const response = await fetch("https://cat-code-didi-web-backend.vercel.app/Prompt", {
     method: "POST",
     headers: {
       Accept: "application/json",
