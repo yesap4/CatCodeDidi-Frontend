@@ -236,9 +236,45 @@ textarea:focus {
   overflow-wrap: anywhere;
 }
 
-.chat-assistant-copy p {
-  white-space: pre-wrap;
+.chat-markdown {
   overflow-wrap: anywhere;
+}
+
+.chat-markdown > * + * {
+  margin-top: 0.75rem;
+}
+
+.chat-markdown ul,
+.chat-markdown ol {
+  padding-left: 1.5rem;
+}
+
+.chat-markdown ul {
+  list-style: disc;
+}
+
+.chat-markdown ol {
+  list-style: decimal;
+}
+
+.chat-markdown a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.chat-markdown blockquote {
+  border-left: 2px solid var(--border);
+  padding-left: 1rem;
+  color: var(--muted-foreground);
+}
+
+.chat-markdown :not(pre) > code {
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--muted) 70%, transparent);
+  padding: 0.12rem 0.35rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.9em;
 }
 
 .chat-code-block {

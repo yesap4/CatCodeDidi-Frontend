@@ -4,6 +4,8 @@ import SendPrompt from "@/Components/Features/SendPrompt.js";
 import VoiceInput from "@/Components/Features/VoiceInput.js";
 import { ModeToggle } from "@/Components/ui/ModeToggle";
 import { Link } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import { renderToStaticMarkup } from "react-dom/server";
 
 const greetings = [
   "You're here!",
@@ -13,19 +15,49 @@ const greetings = [
 ];
 const greeting = greetings[Math.floor(Math.random() * greetings.length)];
 
+/* FLOW: user types -> handleSubmit -> sendMessage -> show user message
+   -> show "thinking..." -> ask server -> show assistant answer.
+
+   Short syntax replaced with long syntax in this file:
+   a?.b -> if check | a || b -> if/else | x ? y : z -> if/else
+   () => {} -> function () {} | `Hi ${n}` -> "Hi " + n
+   {...obj} -> Object.assign({}, obj) | forEach -> for loop */
+
+
+// Gets the text out of the server's reply (it can be a string or an object).
 function getAssistantText(data) {
-  if (typeof data === "string") return data;
-  return (
-    data?.answer ||
-    data?.response ||
-    data?.message ||
-    data?.output ||
-    data?.content ||
-    data?.UserPrompt ||
-    JSON.stringify(data)
-  );
+  if (typeof data === "string") {
+    return data;
+  }
+
+  // Try each possible field name until one has a value
+  if (data !== null && data !== undefined) {
+    if (data.answer) {
+      return data.answer;
+    }
+    if (data.response) {
+      return data.response;
+    }
+    if (data.message) {
+      return data.message;
+    }
+    if (data.output) {
+      return data.output;
+    }
+    if (data.content) {
+      return data.content;
+    }
+    if (data.UserPrompt) {
+      return data.UserPrompt;
+    }
+  }
+
+  // Nothing matched: show the whole object as text
+  return JSON.stringify(data);
 }
 
+
+// Builds the small round logo image.
 function createAvatar(altText) {
   const avatar = document.createElement("img");
   avatar.src = logo;
@@ -34,10 +66,30 @@ function createAvatar(altText) {
   return avatar;
 }
 
+
+// Shows code in a box with a language label and a Copy button.
+// block looks like "js\nconsole.log(1)": first line = language, rest = code.
 function addCodeBlock(container, block) {
-  const lineBreak = block.indexOf("\n");
-  const language = lineBreak === -1 ? "Code" : block.slice(0, lineBreak).trim() || "Code";
-  const codeText = lineBreak === -1 ? block.trim() : block.slice(lineBreak + 1).trim();
+  const lineBreak = block.indexOf("\n"); // -1 means no new line found
+
+  // Language name (default: "Code")
+  let language;
+  if (lineBreak === -1) {
+    language = "Code";
+  } else {
+    language = block.slice(0, lineBreak).trim();
+    if (language === "") {
+      language = "Code";
+    }
+  }
+
+  // The code itself
+  let codeText;
+  if (lineBreak === -1) {
+    codeText = block.trim();
+  } else {
+    codeText = block.slice(lineBreak + 1).trim();
+  }
 
   const codeBlock = document.createElement("div");
   codeBlock.className = "chat-code-block";
@@ -52,10 +104,12 @@ function addCodeBlock(container, block) {
   copyButton.type = "button";
   copyButton.textContent = "Copy";
   copyButton.setAttribute("aria-label", "Copy code");
-  copyButton.addEventListener("click", () => {
-    navigator.clipboard.writeText(codeText).then(() => {
+
+  // On click: copy the code, show "Copied" for 1.6 seconds
+  copyButton.addEventListener("click", function () {
+    navigator.clipboard.writeText(codeText).then(function () {
       copyButton.textContent = "Copied";
-      window.setTimeout(() => {
+      window.setTimeout(function () {
         copyButton.textContent = "Copy";
       }, 1600);
     });
@@ -73,23 +127,41 @@ function addCodeBlock(container, block) {
   container.appendChild(codeBlock);
 }
 
+
+// Splits the answer on ``` : even parts (0, 2, 4...) are text,
+// odd parts (1, 3, 5...) are code.
 function addAssistantContent(container, content) {
   const parts = content.split("```");
 
-  parts.forEach((part, index) => {
+  for (let index = 0; index < parts.length; index++) {
+    const part = parts[index];
+
+    // Even index = normal text
     if (index % 2 === 0) {
-      if (part.trim()) {
-        const paragraph = document.createElement("p");
-        paragraph.textContent = part.trim();
-        container.appendChild(paragraph);
+      const trimmedPart = part.trim();
+
+      if (trimmedPart !== "") {
+        const markdown = document.createElement("div");
+        markdown.className = "chat-markdown";
+
+        // Convert markdown text to an HTML string
+        const markdownElement = <ReactMarkdown>{trimmedPart}</ReactMarkdown>;
+        const htmlString = renderToStaticMarkup(markdownElement);
+
+        markdown.innerHTML = htmlString;
+        container.appendChild(markdown);
       }
-      return;
+
+      continue; // go to the next part
     }
 
+    // Odd index = code
     addCodeBlock(container, part);
-  });
+  }
 }
 
+
+// Shows the user's message in a bubble on the right.
 function addUserMessage(messages, prompt) {
   const row = document.createElement("div");
   row.className = "chat-message-enter flex justify-end";
@@ -103,6 +175,8 @@ function addUserMessage(messages, prompt) {
   row.scrollIntoView({ behavior: "smooth", block: "end" });
 }
 
+
+// Shows a temporary "thinking..." line. Returns it so it can be removed later.
 function addThinkingMessage(messages) {
   const row = document.createElement("div");
   row.className = "chat-message-enter flex items-center gap-3 text-sm text-muted-foreground";
@@ -117,6 +191,8 @@ function addThinkingMessage(messages) {
   return row;
 }
 
+
+// Shows the assistant's answer on the left: avatar + name + content.
 function addAssistantMessage(messages, content) {
   const article = document.createElement("article");
   article.className = "chat-message-enter flex max-w-[min(100%,720px)] items-start gap-3 sm:gap-4";
@@ -139,21 +215,39 @@ function addAssistantMessage(messages, content) {
   article.scrollIntoView({ behavior: "smooth", block: "end" });
 }
 
+
+// Main function: sends the message and shows the reply.
+// "async/await" = wait here until the server answers.
 async function sendMessage(prompt, messages, sendButton) {
   const cleanPrompt = prompt.trim();
-  if (!cleanPrompt || sendButton.disabled) return;
 
-  messages.querySelector(".chat-welcome")?.remove();
-  sendButton.disabled = true;
+  // Stop if empty, or a request is already running
+  if (cleanPrompt === "" || sendButton.disabled === true) {
+    return;
+  }
+
+  // Remove the welcome text if it exists
+  const welcomeMessage = messages.querySelector(".chat-welcome");
+  if (welcomeMessage !== null) {
+    welcomeMessage.remove();
+  }
+
+  sendButton.disabled = true; // prevent double sending
   addUserMessage(messages, cleanPrompt);
 
   const thinkingMessage = addThinkingMessage(messages);
   let answer;
 
+  // try = attempt the server call; catch = runs if it fails
   try {
-    answer = getAssistantText(await SendPrompt(cleanPrompt));
+    const serverResponse = await SendPrompt(cleanPrompt);
+    answer = getAssistantText(serverResponse);
   } catch {
-    answer = `I received “${cleanPrompt}”. The CatCodeDidi service is not reachable right now, so this is a demo reply. Start the assistant service to get a tailored answer.`;
+    // Server not reachable: use a demo reply
+    answer =
+      "I received “" +
+      cleanPrompt +
+      "”. The CatCodeDidi service is not reachable right now, so this is a demo reply. Start the assistant service to get a tailored answer.";
   }
 
   thinkingMessage.remove();
@@ -161,9 +255,13 @@ async function sendMessage(prompt, messages, sendButton) {
   sendButton.disabled = false;
 }
 
+
+// React component: handles form submit, Enter key and auto-send on load.
 function ChatArea() {
+
+  // Runs when the form is submitted
   function handleSubmit(event) {
-    event.preventDefault();
+    event.preventDefault(); // stop the page from reloading
 
     const form = event.currentTarget;
     const promptBox = form.querySelector("textarea");
@@ -171,34 +269,56 @@ function ChatArea() {
     const messages = form.closest(".chat-shell").querySelector("#chat-messages");
     const prompt = promptBox.value.trim();
 
-    if (!prompt || sendButton.disabled) return;
-    promptBox.value = "";
+    if (prompt === "" || sendButton.disabled === true) {
+      return;
+    }
+
+    promptBox.value = ""; // clear the textbox
     sendMessage(prompt, messages, sendButton);
   }
 
+  // Enter sends the message; Shift+Enter makes a new line
   function handleKeyDown(event) {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.key === "Enter" && event.shiftKey === false) {
       event.preventDefault();
       event.currentTarget.form.requestSubmit();
     }
   }
 
+  // If another page passed a prompt along, send it automatically
   function handleMessagesReady(messages) {
-    if (!messages) return;
+    if (messages === null || messages === undefined) {
+      return;
+    }
 
-    const historyState = window.history.state || {};
-    const prompt = historyState.usr?.prompt;
-    if (!prompt) return;
+    // Saved navigation data (empty object if none)
+    let historyState;
+    if (window.history.state) {
+      historyState = window.history.state;
+    } else {
+      historyState = {};
+    }
 
-    const userState = { ...historyState.usr };
+    // Read the prompt only if "usr" exists
+    let prompt;
+    if (historyState.usr !== null && historyState.usr !== undefined) {
+      prompt = historyState.usr.prompt;
+    }
+
+    if (prompt === undefined || prompt === null || prompt === "") {
+      return;
+    }
+
+    // Remove the prompt from history so a page refresh doesn't resend it
+    const userState = Object.assign({}, historyState.usr);
     delete userState.prompt;
-    window.history.replaceState({ ...historyState, usr: userState }, "");
+    const newHistoryState = Object.assign({}, historyState, { usr: userState });
+    window.history.replaceState(newHistoryState, "");
 
     const form = messages.closest(".chat-shell").querySelector("#prompt-composer");
     const sendButton = form.querySelector('button[type="submit"]');
     sendMessage(prompt, messages, sendButton);
   }
-
   return (
     <div className="chat-shell flex h-dvh min-h-[560px] flex-col overflow-hidden text-foreground">
       <header className="chat-header grid h-[72px] shrink-0 grid-cols-3 items-center border-b border-border/70 px-5 sm:px-8">

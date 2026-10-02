@@ -1,6 +1,6 @@
 import { Moon, Sun } from "lucide-react";
 
-import { buttonVariants } from "@/Components/ui/button";
+import { buttonVariants } from "@/Components/ui/button-variants";
 import {
   DropdownMenu,
   DropdownMenuContent,
