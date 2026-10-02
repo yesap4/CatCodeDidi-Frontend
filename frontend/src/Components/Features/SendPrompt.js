@@ -22,7 +22,7 @@ async function SendPrompt(prompt) {
   if (greeting === true) {
     return "Hey there! How can I help?";
   } else if (creator === true) {
-    return "I was created by the CatCodeDidi team.";
+    return "I was created by the CatCodeDidi team and Anant Was The Leader.";
   } else {
     if (cache[text] !== undefined) {
       return cache[text];
